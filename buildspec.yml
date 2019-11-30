@@ -1,0 +1,15 @@
+env:
+    variables:
+	    FOCUSMARK_ENVIRONMENT: dev
+
+phases:
+	install:
+		commands:
+			- dotnet install -g Amazon.Lambda.Tools
+	build:
+		commands:
+			- dotnet restore
+			- dotnet build
+	post_build:
+		commands:
+			- dotnet lambda deploy-serverless --config-file aws-lambda-tools-defaults.json

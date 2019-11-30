@@ -1,0 +1,409 @@
+{
+  "AWSTemplateFormatVersion": "2010-09-09",
+  "Transform": "AWS::Serverless-2016-10-31",
+  "Description": "Focus Mark Projects REST API",
+
+  "Parameters": {
+    "DeploymentEnvironment": {
+      "Type": "String",
+      "AllowedValues": [ "dev", "test", "prod" ]
+    }
+  },
+
+  "Resources": {
+
+    "ProjectStream": {
+      "Type": "AWS::Kinesis::Stream",
+      "Properties": {
+        "Name": {
+          "Fn::Join": [
+            "-",
+            [
+              { "Ref": "AWS::StackName" },
+              { "Ref": "DeploymentEnvironment" },
+              "projects",
+              "eventsource"
+            ]
+          ]
+        },
+        "ShardCount": 1
+      }
+    },
+
+    "ProjectStreamArchiveBucket": {
+      "Type": "AWS::S3::Bucket",
+      "Properties": {
+        "BucketName": {
+          "Fn::Join": [
+            "-",
+            [
+              { "Ref": "AWS::StackName" },
+              { "Ref": "DeploymentEnvironment" },
+              "projects",
+              "eventsource"
+            ]
+          ]
+        },
+        "VersioningConfiguration": {
+          "Status": "Enabled"
+        }
+      }
+    },
+
+    "ProjectFirehoseRole": {
+      "Type": "AWS::IAM::Role",
+      "Properties": {
+        "RoleName": {
+          "Fn::Join": [
+            "-",
+            [
+              { "Ref": "AWS::StackName" },
+              { "Ref": "DeploymentEnvironment" },
+              "projects",
+              "firehose"
+            ]
+          ]
+        },
+        "AssumeRolePolicyDocument": {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Sid": "",
+              "Effect": "Allow",
+              "Principal": {
+                "Service": "firehose.amazonaws.com"
+              },
+              "Action": "sts:AssumeRole",
+              "Condition": {
+                "StringEquals": {
+                  "sts:ExternalId": { "Ref": "AWS::AccountId" }
+                }
+              }
+            }
+          ]
+        }
+      }
+    },
+
+    "ProjectFirehosePolicy": {
+      "Type": "AWS::IAM::Policy",
+      "DependsOn": [ "ProjectFirehoseRole", "ProjectStream", "ProjectStreamArchiveBucket" ],
+      "Properties": {
+        "PolicyName": {
+          "Fn::Join": [
+            "-",
+            [
+              { "Ref": "AWS::StackName" },
+              { "Ref": "DeploymentEnvironment" },
+              "projects",
+              "firehose"
+            ]
+          ]
+        },
+        "PolicyDocument": {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Effect": "Allow",
+              "Action": [
+                "s3:AbortMultipartUpload",
+                "s3:GetBucketLocation",
+                "s3:GetObject",
+                "s3:ListBucket",
+                "s3:ListBucketMultipartUploads",
+                "s3:PutObject"
+              ],
+              "Resource": [
+                {
+                  "Fn::Join": [
+                    "",
+                    [
+                      "arn:aws:s3:::",
+                      { "Ref": "ProjectStreamArchiveBucket" }
+                    ]
+                  ]
+                },
+                {
+                  "Fn::Join": [
+                    "",
+                    [
+                      "arn:aws:s3:::",
+                      { "Ref": "ProjectStreamArchiveBucket" },
+                      "*"
+                    ]
+                  ]
+                }
+              ]
+            },
+            {
+              "Effect": "Allow",
+              "Action": [
+                "kinesis:DescribeStream",
+                "kinesis:GetShardIterator",
+                "kinesis:GetRecords"
+              ],
+              "Resource": { "Fn::GetAtt": [ "ProjectStream", "Arn" ] }
+            }
+          ]
+        },
+        "Roles": [ { "Ref": "ProjectFirehoseRole" } ]
+      }
+    },
+
+    "ProjectFirehose": {
+      "Type": "AWS::KinesisFirehose::DeliveryStream",
+      "DependsOn": "ProjectFirehosePolicy",
+      "Properties": {
+        "DeliveryStreamName": {
+          "Fn::Join": [
+            "-",
+            [
+              { "Ref": "AWS::StackName" },
+              { "Ref": "DeploymentEnvironment" },
+              "projects",
+              "archive"
+            ]
+          ]
+        },
+        "DeliveryStreamType": "KinesisStreamAsSource",
+        "KinesisStreamSourceConfiguration": {
+          "KinesisStreamARN": { "Fn::GetAtt": [ "ProjectStream", "Arn" ] },
+          "RoleARN": { "Fn::GetAtt": [ "ProjectFirehoseRole", "Arn" ] }
+        },
+        "ExtendedS3DestinationConfiguration": {
+          "CompressionFormat": "UNCOMPRESSED",
+          "BucketARN": {
+            "Fn::Join": [
+              "",
+              [
+                "arn:aws:s3:::",
+                { "Ref": "ProjectStreamArchiveBucket" }
+              ]
+            ]
+          },
+          "BufferingHints": {
+            "IntervalInSeconds": "60",
+            "SizeInMBs": "5"
+          },
+          "Prefix": "firehose/",
+          "RoleARN": { "Fn::GetAtt": [ "ProjectFirehoseRole", "Arn" ] },
+          "ProcessingConfiguration": {
+            "Enabled": "false"
+          }
+        }
+      }
+    },
+
+    "CreateProjectCommand": {
+      "Type": "AWS::Serverless::Function",
+      "Properties": {
+        "FunctionName": {
+          "Fn::Join": [
+            "-",
+            [
+              { "Ref": "AWS::StackName" },
+              { "Ref": "DeploymentEnvironment" },
+              "projects",
+              "create"
+            ]
+          ]
+        },
+        "Environment": {
+          "Variables": {
+            "FOCUSMARK_ENVIRONMENT": { "Ref": "DeploymentEnvironment" }
+          }
+        },
+        "Handler": "FocusMark.Api.Projects::FocusMark.Api.Projects.Commands.CreateProjectCommandHandler::RunHandler",
+        "Runtime": "dotnetcore2.1",
+        "CodeUri": "",
+        "MemorySize": 512,
+        "Timeout": 30,
+        "Role": null,
+        "Policies": [ "AWSLambdaFullAccess" ],
+        "Events": {
+          "RootGet": {
+            "Type": "Api",
+            "Properties": {
+              "Path": "/projects",
+              "Method": "POST"
+            }
+          }
+        }
+      }
+    },
+
+    "DeleteProjectCommand": {
+      "Type": "AWS::Serverless::Function",
+      "Properties": {
+        "FunctionName": {
+          "Fn::Join": [
+            "-",
+            [
+              { "Ref": "AWS::StackName" },
+              { "Ref": "DeploymentEnvironment" },
+              "projects",
+              "delete"
+            ]
+          ]
+        },
+        "Environment": {
+          "Variables": {
+            "FOCUSMARK_ENVIRONMENT": { "Ref": "DeploymentEnvironment" }
+          }
+        },
+        "Handler": "FocusMark.Api.Projects::FocusMark.Api.Projects.Commands.DeleteProjectCommandHandler::RunHandler",
+        "Runtime": "dotnetcore2.1",
+        "CodeUri": "",
+        "MemorySize": 512,
+        "Timeout": 30,
+        "Role": null,
+        "Policies": [ "AWSLambdaFullAccess" ],
+        "Events": {
+          "RootGet": {
+            "Type": "Api",
+            "Properties": {
+              "Path": "/projects/{projectId}",
+              "Method": "DELETE"
+            }
+          }
+        }
+      }
+    },
+
+    "GetProjectsQuery": {
+      "Type": "AWS::Serverless::Function",
+      "Properties": {
+        "FunctionName": {
+          "Fn::Join": [
+            "-",
+            [
+              { "Ref": "AWS::StackName" },
+              { "Ref": "DeploymentEnvironment" },
+              "projects",
+              "getall"
+            ]
+          ]
+        },
+        "Environment": {
+          "Variables": {
+            "FOCUSMARK_ENVIRONMENT": { "Ref": "DeploymentEnvironment" }
+          }
+        },
+        "Handler": "FocusMark.Api.Projects::FocusMark.Api.Projects.Queries.GetProjectsQueryHandler::RunHandler",
+        "Runtime": "dotnetcore2.1",
+        "CodeUri": "",
+        "MemorySize": 512,
+        "Timeout": 30,
+        "Role": null,
+        "Policies": [ "AWSLambdaFullAccess" ],
+        "Events": {
+          "RootGet": {
+            "Type": "Api",
+            "Properties": {
+              "Path": "/projects",
+              "Method": "GET"
+            }
+          }
+        }
+      }
+    },
+
+    "GetProjectQuery": {
+      "Type": "AWS::Serverless::Function",
+      "Properties": {
+        "FunctionName": {
+          "Fn::Join": [
+            "-",
+            [
+              { "Ref": "AWS::StackName" },
+              { "Ref": "DeploymentEnvironment" },
+              "projects",
+              "getbyid"
+            ]
+          ]
+        },
+        "Environment": {
+          "Variables": {
+            "FOCUSMARK_ENVIRONMENT": { "Ref": "DeploymentEnvironment" }
+          }
+        },
+        "Handler": "FocusMark.Api.Projects::FocusMark.Api.Projects.Queries.GetProjectQueryHandler::RunHandler",
+        "Runtime": "dotnetcore2.1",
+        "CodeUri": "",
+        "MemorySize": 512,
+        "Timeout": 30,
+        "Role": null,
+        "Policies": [ "AWSLambdaFullAccess" ],
+        "Events": {
+          "RootGet": {
+            "Type": "Api",
+            "Properties": {
+              "Path": "/projects/{projectId}",
+              "Method": "GET"
+            }
+          }
+        }
+      }
+    },
+
+    "ProjectsTable": {
+      "Type": "AWS::DynamoDB::Table",
+      "Properties": {
+        "TableName": {
+          "Fn::Join": [
+            "-",
+            [
+              { "Ref": "AWS::StackName" },
+              { "Ref": "DeploymentEnvironment" },
+              "projects",
+              "apidata"
+            ]
+          ]
+        },
+        "AttributeDefinitions": [
+          {
+            "AttributeName": "Id",
+            "AttributeType": "S"
+          },
+          {
+            "AttributeName": "OwningUser",
+            "AttributeType": "S"
+          }
+        ],
+        "KeySchema": [
+          {
+            "AttributeName": "OwningUser",
+            "KeyType": "HASH"
+          },
+          {
+            "AttributeName": "Id",
+            "KeyType": "RANGE"
+          }
+        ],
+        "ProvisionedThroughput": {
+          "ReadCapacityUnits": 2,
+          "WriteCapacityUnits": 2
+        }
+      }
+    }
+  },
+
+  "Outputs": {
+    "ApiURL": {
+      "Description": "API endpoint URL for Prod environment.",
+      "Value": { "Fn::Sub": "https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/" }
+    },
+    "StreamName": {
+      "Description": "Kinesis stream for Projects.",
+      "Value": { "Ref": "ProjectStream" }
+    },
+    "Stack": {
+      "Description": "CloudFormation Stack deployed.",
+      "Value": { "Ref": "AWS::StackName" }
+    },
+    "DeployedEnvironment": {
+      "Description": "Environment the API was deployed into.",
+      "Value": { "Ref": "DeploymentEnvironment" }
+    }
+  }
+}

@@ -7,6 +7,10 @@
     "DeploymentEnvironment": {
       "Type": "String",
       "AllowedValues": [ "dev", "test", "prod" ]
+    },
+    "LambdaApiLayers": {
+      "Type": "CommaDelimitedList",
+      "Description": "The ARNs of all Lambda Layers you want to integrate with."
     }
   },
 
@@ -215,6 +219,9 @@
         },
         "Handler": "FocusMark.Api.Projects::FocusMark.Api.Projects.Commands.CreateProjectCommandHandler::RunHandler",
         "Runtime": "dotnetcore2.1",
+        "Layers": { "Ref": "LambdaApiLayers" },
+        "AutoPublishAlias": { "Ref": "DeploymentEnvironment" },
+        "ProvisionedConcurrencyConfig": { "ProvisionedConcurrentExecutions": 2 },
         "CodeUri": "",
         "MemorySize": 512,
         "Timeout": 30,
@@ -253,6 +260,9 @@
         },
         "Handler": "FocusMark.Api.Projects::FocusMark.Api.Projects.Commands.DeleteProjectCommandHandler::RunHandler",
         "Runtime": "dotnetcore2.1",
+        "Layers": { "Ref": "LambdaApiLayers" },
+        "AutoPublishAlias": { "Ref": "DeploymentEnvironment" },
+        "ProvisionedConcurrencyConfig": { "ProvisionedConcurrentExecutions": 2 },
         "CodeUri": "",
         "MemorySize": 512,
         "Timeout": 30,
@@ -291,6 +301,9 @@
         },
         "Handler": "FocusMark.Api.Projects::FocusMark.Api.Projects.Queries.GetProjectsQueryHandler::RunHandler",
         "Runtime": "dotnetcore2.1",
+        "Layers": { "Ref": "LambdaApiLayers" },
+        "AutoPublishAlias": { "Ref": "DeploymentEnvironment" },
+        "ProvisionedConcurrencyConfig": { "ProvisionedConcurrentExecutions": 2 },
         "CodeUri": "",
         "MemorySize": 512,
         "Timeout": 30,
@@ -329,6 +342,9 @@
         },
         "Handler": "FocusMark.Api.Projects::FocusMark.Api.Projects.Queries.GetProjectQueryHandler::RunHandler",
         "Runtime": "dotnetcore2.1",
+        "Layers": { "Ref": "LambdaApiLayers" },
+        "AutoPublishAlias": { "Ref": "DeploymentEnvironment" },
+        "ProvisionedConcurrencyConfig": { "ProvisionedConcurrentExecutions": 2 },
         "CodeUri": "",
         "MemorySize": 512,
         "Timeout": 30,

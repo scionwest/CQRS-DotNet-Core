@@ -14,7 +14,7 @@
   "framework": "netcoreapp2.1",
   "s3-prefix": "lambdacqrs/",
   "template": "serverless.template",
-  "template-parameters": "DeploymentEnvironment=dev",
+  "template-parameters": "DeploymentEnvironment=dev;LambdaApiLayers=arn:aws:lambda:us-east-1:223237870883:layer:FocusMarkApiLayer:1",
   "function-memory-size": 512,
   "function-timeout": 30,
   "s3-bucket": "focusmark-dev-deployments",

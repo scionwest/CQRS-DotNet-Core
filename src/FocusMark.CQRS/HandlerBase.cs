@@ -1,7 +1,6 @@
 ﻿using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using System;
-using System.Threading.Tasks;
 
 namespace FocusMark.CQRS
 {
@@ -11,22 +10,23 @@ namespace FocusMark.CQRS
 
         public IServiceProvider Services { get; protected set; }
 
-        public async Task InitializeConfiguration()
+        public void InitializeConfiguration()
         {
             var configurationBuilder = new ConfigurationBuilder();
-            await this.ConfigureHandler(configurationBuilder);
+            this.ConfigureHandler(configurationBuilder);
+            
             this.Configuration = configurationBuilder.Build();
         }
 
-        public async Task InitializeServiceProvider()
+        public void InitializeServiceProvider()
         {
             var services = new ServiceCollection();
+            this.RegisterHandlerServices(services);
 
-            await this.RegisterHandlerServices(services);
             this.Services = services.BuildServiceProvider();
         }
 
-        protected virtual Task ConfigureHandler(IConfigurationBuilder configurationBuilder)
+        protected virtual void ConfigureHandler(IConfigurationBuilder configurationBuilder)
         {
             string environment = System.Environment.GetEnvironmentVariable("FOCUSMARK_ENVIRONMENT");
             configurationBuilder.AddJsonFile("appsettings.json", optional: true);
@@ -36,13 +36,11 @@ namespace FocusMark.CQRS
             }
 
             configurationBuilder.AddEnvironmentVariables();
-            return Task.CompletedTask;
         }
 
-        protected virtual Task RegisterHandlerServices(IServiceCollection services)
+        protected virtual void RegisterHandlerServices(IServiceCollection services)
         {
             services.AddSingleton<IConfiguration>(this.Configuration);
-            return Task.CompletedTask;
         }
     }
 }

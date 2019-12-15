@@ -9,7 +9,8 @@ namespace FocusMark.CQRS
     {
         public async Task<APIGatewayProxyResponse> RunHandler(APIGatewayProxyRequest request, ILambdaContext context)
         {
-            await this.Initialize(request, context);
+            base.ProxyRequest = request;
+            base.Logger = context.Logger;
 
             // Run query
             HandlerResponse response = await this.QueryHandler();

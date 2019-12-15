@@ -10,12 +10,15 @@ namespace FocusMark.CQRS
 
         protected ILambdaLogger Logger { get; set; }
 
-        public async Task Initialize(APIGatewayProxyRequest request, ILambdaContext context)
+        public ApiGatewayHandler()
         {
-            this.ProxyRequest = request;
-            this.Logger = context.Logger;
-            await this.InitializeConfiguration();
-            await this.InitializeServiceProvider();
+            this.Initialize();
+        }
+
+        public void Initialize()
+        {
+            this.InitializeConfiguration();
+            this.InitializeServiceProvider();
         }
 
         protected virtual string GetDefaultContentType() => "application/json";

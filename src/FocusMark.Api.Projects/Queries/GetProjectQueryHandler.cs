@@ -8,16 +8,21 @@ namespace FocusMark.Api.Projects.Queries
 {
     public class GetProjectQueryHandler : ApiGatewayQueryHandler
     {
-        protected override Task RegisterHandlerServices(IServiceCollection services)
+        private readonly IProjectRepository repository;
+
+        public GetProjectQueryHandler() : base()
         {
+            this.repository = base.Services.GetRequiredService<IProjectRepository>();
+        }
+
+        protected override void RegisterHandlerServices(IServiceCollection services)
+        {
+            base.RegisterHandlerServices(services);
             services.AddTodoServices();
-            return base.RegisterHandlerServices(services);
         }
 
         protected override async Task<HandlerResponse> QueryHandler()
         {
-            IProjectRepository repository = base.Services.GetRequiredService<IProjectRepository>();
-
             if (!this.ProxyRequest.Headers.TryGetValue("username", out string username))
             {
                 username = "janedoe";

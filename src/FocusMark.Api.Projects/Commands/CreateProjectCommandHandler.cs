@@ -10,15 +10,21 @@ namespace FocusMark.Api.Projects.Commands
 {
     public class CreateProjectCommandHandler : ApiGatewayCommandHandler<CreateProjectCommand>
     {
-        protected override Task RegisterHandlerServices(IServiceCollection services)
+        private readonly IProjectRepository repository;
+
+        public CreateProjectCommandHandler() : base()
         {
+            this.repository = base.Services.GetRequiredService<IProjectRepository>();
+        }
+
+        protected override void RegisterHandlerServices(IServiceCollection services)
+        {
+            base.RegisterHandlerServices(services);
             services.AddTodoServices();
-            return base.RegisterHandlerServices(services);
         }
 
         protected override async Task<HandlerResponse> CommandHandler(CreateProjectCommand requestBody)
         {
-            IProjectRepository repository = base.Services.GetRequiredService<IProjectRepository>();
             if (!this.ProxyRequest.Headers.TryGetValue("username", out string username))
             {
                 username = "janedoe";
@@ -46,12 +52,12 @@ namespace FocusMark.Api.Projects.Commands
                 base.Logger.LogLine($"Saving {newProject.Title} for {username} into repository.");
                 await repository.CreateProjectAsync(username, newProject);
 
-                string streamName = this.Configuration["AWS:EventSource:StreamName"];
-                var bus = new EventBus();
-                var record = new EventRecord(1, newProject, streamName);
+                //string streamName = this.Configuration["AWS:EventSource:StreamName"];
+                //var bus = new EventBus();
+                //var record = new EventRecord(1, newProject, streamName);
 
-                base.Logger.LogLine($"Publishing {newProject.Title} for {username} into {streamName} event source.");
-                await bus.PublishMessage(record);
+                //base.Logger.LogLine($"Publishing {newProject.Title} for {username} into {streamName} event source.");
+                //await bus.PublishMessage(record);
                 return this.StatusCreated(newProject.Id);
             }
             catch (System.Exception ex)

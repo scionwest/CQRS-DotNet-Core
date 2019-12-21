@@ -1,0 +1,94 @@
+Transform: AWS::Serverless-2016-10-31
+Description: "FocusMark Projects REST API"
+
+Globals:
+  Function:
+    Runtime: dotnetcore2.1
+    Layers: !Ref LambdaApiLayers
+    Environment:
+      Variables:
+        FOCUSMARK_ENVIRONMENT: !Ref DeploymentEnvironment
+    MemorySize: 1024
+    Timeout: 15
+    Policies:
+      - AWSLambdaFullAccess
+    CodeUri: ""
+    Role: null
+
+Resources:
+  CreateProjectCommand:
+    Type: 'AWS::Serverless::Function'
+    Properties:
+      Handler: FocusMark.Api.Projects::FocusMark.Api.Projects.Commands.CreateProjectCommandHandler::RunHandler
+      FunctionName: !Join [ "-", [ !Ref AWS::StackName, !Ref DeploymentEnvironment ], 'Projects', 'create' ]
+      Events:
+        DeleteProject:
+          Type: Api
+          Properties:
+            Method: Post
+            Path: /projects
+
+  DeleteProjectCommand:
+    Type: 'AWS::Serverless::Function'
+    Properties:
+      Handler: FocusMark.Api.Projects::FocusMark.Api.Projects.Commands.DeleteProjectCommandHandler::RunHandler
+      FunctionName: !Join [ "-", [ !Ref AWS::StackName, !Ref DeploymentEnvironment ], 'Projects', 'delete' ]
+      Events:
+        DeleteProject:
+          Type: Api
+          Properties:
+            Method: Delete
+            Path: /projects/{projectId}
+
+  GetProjectsQuery:
+    Type: 'AWS::Serverless::Function'
+    Properties:
+      Handler: FocusMark.Api.Projects::FocusMark.Api.Projects.Queries.GetProjectsQueryHandler::RunHandler
+      FunctionName: !Join [ "-", [ !Ref AWS::StackName, !Ref DeploymentEnvironment ], 'Projects', 'getall' ]
+      Events:
+        DeleteProject:
+          Type: Api
+          Properties:
+            Method: Get
+            Path: /projects
+            
+  GetProjectQuery:
+    Type: 'AWS::Serverless::Function'
+    Properties:
+      Handler: FocusMark.Api.Projects::FocusMark.Api.Projects.Queries.GetProjectQueryHandler::RunHandler
+      FunctionName: !Join [ "-", [ !Ref AWS::StackName, !Ref DeploymentEnvironment ], 'Projects', 'getbyid' ]
+      Events:
+        DeleteProject:
+          Type: Api
+          Properties:
+            Method: Get
+            Path: /projects/{projectId}
+
+  ProjectsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Join [ "-", [ !Ref AWS::StackName, !Ref DeploymentEnvironment ], 'Projects', 'apidata' ]
+      AttributeDefinitions:
+        - AttributeName: Id
+          AttributeType: S
+        - AttributeNane: OwningUser
+          AttributeType: S
+      KeySchema:
+        - AttributeName: OwningUser
+          KeyType: Hash 
+        - AttributeName: Id
+          KeyType: Range
+      ProvisionedThroughput:
+        ReadCapacityUnits: 2
+        WriteCapacityUnits: 2
+
+Outputs:
+  ApiUrl:
+    Description: API endpoint URL for Production environment
+    Value: !Sub 'https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/prod'
+  Stack:
+    Description: CloudFormation Stack deployed
+    Value: !Ref AWS::StackName
+  DeployedEnvironment:
+    Description: The environment that this API is deployed into.
+    Value: !Ref DeployedEnvironment

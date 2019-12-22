@@ -1,6 +1,17 @@
 Transform: AWS::Serverless-2016-10-31
 Description: "FocusMark Projects REST API"
 
+Parameters:
+  DeploymentEnvironment:
+    Type: String
+    AllowedValues:
+      - dev
+      - test
+      - prod
+  LambdaApiLayers:
+    Type: CommaDelimitedList
+    Description: 'The ARNs of all Lambda Layers you want to integrate with.'
+
 Globals:
   Function:
     Runtime: dotnetcore2.1
@@ -10,10 +21,7 @@ Globals:
         FOCUSMARK_ENVIRONMENT: !Ref DeploymentEnvironment
     MemorySize: 1024
     Timeout: 15
-    Policies:
-      - AWSLambdaFullAccess
     CodeUri: ""
-    Role: null
 
 Resources:
   CreateProjectCommand:
@@ -21,6 +29,8 @@ Resources:
     Properties:
       Handler: FocusMark.Api.Projects::FocusMark.Api.Projects.Commands.CreateProjectCommandHandler::RunHandler
       FunctionName: !Join [ "-", [ !Ref AWS::StackName, !Ref DeploymentEnvironment ], 'Projects', 'create' ]
+      Policies:
+        - AWSLambdaFullAccess
       Events:
         DeleteProject:
           Type: Api
